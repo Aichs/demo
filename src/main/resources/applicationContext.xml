@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/context 
+						http://www.springframework.org/schema/context/spring-context.xsd
+						http://www.springframework.org/schema/mvc 
+						http://www.springframework.org/schema/mvc/spring-mvc.xsd
+						http://www.springframework.org/schema/tx 
+						http://www.springframework.org/schema/tx/spring-tx.xsd
+						http://www.springframework.org/schema/aop 
+						http://www.springframework.org/schema/aop/spring-aop.xsd
+						http://www.springframework.org/schema/beans 
+						http://www.springframework.org/schema/beans/spring-beans.xsd
+						">
+	<!-- 扫描并激活注解 -->
+	<context:component-scan base-package="com.ssm" />
+	<!-- 多视图解析器 -->
+	<mvc:annotation-driven>
+		<!-- MVC注解 -->
+		<mvc:message-converters>
+			<!-- 解决406错误 -->
+			<bean id="fastJsonHttpMessageConverter"
+				class="com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter">
+				<property name="supportedMediaTypes">
+					<list>
+						<value>application/json;charset=UTF-8</value>
+					</list>
+				</property>
+			</bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+	<!-- 引入property文件 -->
+	<context:property-placeholder ignore-unresolvable="true" location="classpath*:database.properties,classpath*:application.properties" ignore-resource-not-found="true"/>
+	<bean id="message" class="org.springframework.mail.SimpleMailMessage">  
+        <property name="from" value ="${mail.from}"></property>  
+    </bean>
+      
+    <bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">  
+        <property name="defaultEncoding" value="UTF-8" />  
+        <property name="host" value="${mail.host}" />  
+        <property name="username" value="${mail.username}" />  
+        <property name="password" value="${mail.password}" />  
+        <property name="javaMailProperties">  
+            <props>  
+                <!-- 设置认证开关 -->  
+                <prop key="mail.smtp.auth">true</prop>  
+                <!-- 启动调试开关 -->  
+                <prop key="mail.debug">true</prop>  
+                <!-- 设置发送延时 -->
+                <prop key="mail.smtp.timeout">0</prop>
+                <prop key="mail.smtp.socketFactory.class">${mail.smtp.socketFactory.class}</prop>
+                <prop key="mail.smtp.port">${mail.smtp.port}</prop>
+                <prop key="mail.smtp.socketFactory.port">${mail.smtp.socketFactory.port}</prop>
+            </props>  
+        </property>  
+    </bean>
+
+	<!-- 配置数据源 -->
+	<bean id="dataSource"
+		class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName" value="${driver}" />
+		<property name="url" value="${url}" />
+		<property name="username" value="${name}" />
+		<property name="password" value="${password}" />
+	</bean>
+	<!-- 配置sqlSessiionFactoryBean -->
+	<bean id="sqlSessionFactoryBean"
+		class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="typeAliasesPackage" value="com.ssm.entity"></property>
+	</bean>
+	<!-- 配置 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.ssm.dao" />
+		<property name="sqlSessionFactoryBeanName"
+			value="sqlSessionFactoryBean" />
+	</bean>
+	<!-- 声明事务 -->
+	<bean id="txManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	<!-- 配置事务管理器 -->
+	<tx:advice id="txAdvice" transaction-manager="txManager">
+		<tx:attributes>
+			<tx:method name="find*" read-only="true"
+				propagation="SUPPORTS" />
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+	<!-- 配置切面 -->
+	<aop:config>
+		<aop:pointcut
+			expression="execution(* com.ssm.service..*.*(..))" id="pc" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="pc" />
+	</aop:config>
+	<!-- 视图解析器 -->
+	<bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/jsp/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+</beans>
